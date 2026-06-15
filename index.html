@@ -1,0 +1,2459 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Take a Walk Fight</title>
+
+<style>
+
+html,body{
+    margin:0;
+    width:100%;
+    min-height:100vh;
+}
+
+body{
+    background:#111;
+    color:white;
+    font-family:Arial;
+    text-align:center;
+}
+
+#game{
+    width:100%;
+    max-width:900px;
+    margin:auto;
+}
+
+.row{
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    flex-wrap:wrap;
+}
+
+.card{
+    width:60px;
+    background:#222;
+    border:1px solid #555;
+    padding:5px;
+}
+
+.card img{
+    width:100%;
+    height:60px;
+    object-fit:cover;
+}
+
+.boss-card{
+    width:95%;
+    max-width:100px;
+    margin:auto;
+    background:#222;
+    border:1px solid #555;
+    padding:5px;
+}
+
+.boss-card img{
+    width:100%;
+    height:100px;
+    object-fit:cover;
+}
+
+.bar{
+    width:100%;
+    height:18px;
+    background:#333;
+}
+
+.hp{
+    height:100%;
+    background:red;
+}
+
+.note{
+    position:fixed;
+    font-size:32px;
+    pointer-events:none;
+    z-index:9999;
+}
+
+.water{
+    position:fixed;
+    height:12px;
+    background:
+    linear-gradient(
+        to right,
+        cyan,
+        white,
+        cyan
+    );
+    border-radius:20px;
+    pointer-events:none;
+    z-index:9999;
+}
+
+.buzzsaw{
+    position:fixed;
+    width:50px;
+    height:50px;
+    background:
+    radial-gradient(circle,#eee 20%,#999 45%,#555 70%,#333 100%);
+    clip-path:polygon(
+    50% 0%,
+    60% 12%,
+    78% 2%,
+    75% 22%,
+    98% 22%,
+    85% 40%,
+    100% 50%,
+    85% 60%,
+    98% 78%,
+    75% 78%,
+    78% 98%,
+    60% 88%,
+    50% 100%,
+    40% 88%,
+    22% 98%,
+    25% 78%,
+    2% 78%,
+    15% 60%,
+    0% 50%,
+    15% 40%,
+    2% 22%,
+    25% 22%,
+    22% 2%,
+    40% 12%
+    );
+    z-index:9999;
+    pointer-events:none;
+animation:sawSpin .08s linear infinite;
+}
+
+.buzzsaw::after{
+    content:"";
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:10px;
+    height:10px;
+    background:#111;
+    border:2px solid #bbb;
+    border-radius:50%;
+    transform:translate(-50%,-50%);
+}
+
+@keyframes sawSpin{
+    from{
+        rotate:0deg;
+    }
+    to{
+        rotate:360deg;
+    }
+}
+
+button{
+    padding:8px 15px;
+    margin:4px;
+    font-size:16px;
+}
+
+#actions{
+    margin-top:15px;
+}
+
+#log{
+    width:95%;
+    max-width:800px;
+    height:80px;
+    overflow-y:auto;
+    background:#222;
+    text-align:left;
+    margin:auto;
+    margin-top:15px;
+    padding:10px;
+}
+
+#selection{
+    margin:20px auto;
+    max-width:800px;
+}
+
+#selection .card{
+    width:80px;
+    padding:8px;
+    cursor:pointer;
+}
+
+#selection .card.selected{
+    border:2px solid gold;
+    background:#333;
+}
+
+</style>
+
+</head>
+<body>
+
+<div id="selection">
+<h1>Choose Characters For Team</h1>
+<div class="row" id="selectRow"></div>
+<button onclick="startBattle()">START BATTLE</button>
+<h3 id="areaText">🌲 Wood Land</h3>
+</div>
+
+<div id="game" style="display:none;">
+
+<h1 id="battleTitle">⚔ Battle ⚔</h1>
+
+<div class="row" id="teamRow"></div>
+
+<br>
+
+<div class="boss-card">
+<img src="https://i.ibb.co/yFSZkjLD/5.jpg">
+<h2 id="bossName"></h2>
+<div class="bar">
+<div class="hp" id="bossHP"></div>
+</div>
+<p id="bossText"></p>
+</div>
+
+<h2 id="turnText"></h2>
+
+<div id="actions">
+<button onclick="attack()">Attack</button>
+<button onclick="skill()">Skill 1</button>
+<button onclick="skill2()">Skill 2</button>
+<button onclick="skill3()">Skill 3</button>
+</div>
+
+<div id="log"></div>
+
+</div>
+
+<script>
+
+let roster = [
+"Kaito",
+"Elena",
+"Ryker",
+"Aria",
+"Mireia",
+"Neria",
+"Vexa"
+];
+
+if(localStorage.getItem("miloUnlocked")==="true"){
+    if(!roster.includes("Milo")){
+        roster.push("Milo");
+    }
+}
+
+if(localStorage.getItem("renUnlocked")==="true"){
+    if(!roster.includes("Ren")){
+        roster.push("Ren");
+    }
+}
+
+if(localStorage.getItem("maniesperaUnlocked")==="true"){
+    if(!roster.includes("Maniespera")){
+        roster.push("Maniespera");
+    }
+}
+
+if(localStorage.getItem("alderUnlocked")==="true"){
+    if(!roster.includes("Mister Alder")){
+        roster.push("Mister Alder");
+    }
+}
+
+let teamData = [
+
+{
+name:"Kaito",
+hp:120,
+maxHp:120,
+atk:10,
+cd:0,
+hide:0,
+dot:0,
+freezeTurns:0,
+snowball:0
+},
+{
+name:"Elena",
+hp:100,
+maxHp:100,
+atk:5,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0
+},
+{
+name:"Ryker",
+hp:130,
+maxHp:130,
+atk:15,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0
+},
+{
+name:"Aria",
+hp:110,
+maxHp:110,
+atk:20,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0
+},
+{
+name:"Mireia",
+hp:100,
+maxHp:100,
+atk:20,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0,
+huntBuff:0,
+huntBuffTurns:0
+},
+{
+name:"Neria",
+hp:90,
+maxHp:90,
+atk:0,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0,
+injure:false,
+img:"https://i.ibb.co/C3VhWsz3/image.png",
+injureImg:"https://i.ibb.co/hJ8J0Q4C/image.png"
+},
+{
+name:"Vexa",
+hp:140,
+maxHp:140,
+atk:15,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0,
+charge:0
+},
+{
+name:"Milo",
+hp:100,
+maxHp:100,
+atk:0,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0,
+poisonTurns:0
+},
+{
+name:"Ren",
+hp:120,
+maxHp:120,
+atk:0,
+freezeTurns:0,
+snowball:0,
+skill1Cd:0,
+skill2Cd:0,
+immortal:0
+},
+{
+name:"Maniespera",
+hp:115,
+maxHp:115,
+atk:0,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0,
+skill1Cd:0,
+skill2Cd:0
+},
+{
+name:"Mister Alder",
+hp:250,
+maxHp:250,
+atk:49,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0,
+skill1Cd:0,
+skill2Cd:0,
+skill3Cd:45
+}
+];
+
+function resetCharacters(){
+
+allCharacters = JSON.parse(JSON.stringify([
+{
+name:"Kaito",
+hp:120,
+maxHp:120,
+atk:10,
+cd:0,
+hide:0,
+dot:0,
+freezeTurns:0,
+snowball:0
+},
+{
+name:"Elena",
+hp:100,
+maxHp:100,
+atk:5,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0
+},
+{
+name:"Ryker",
+hp:130,
+maxHp:130,
+atk:15,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0
+},
+{
+name:"Aria",
+hp:110,
+maxHp:110,
+atk:20,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0
+},
+{
+name:"Mireia",
+hp:100,
+maxHp:100,
+atk:20,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0,
+huntBuff:0,
+huntBuffTurns:0
+},
+{
+name:"Neria",
+hp:90,
+maxHp:90,
+atk:0,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0,
+injure:false,
+img:"https://i.ibb.co/C3VhWsz3/image.png",
+injureImg:"https://i.ibb.co/hJ8J0Q4C/image.png"
+},
+{
+name:"Vexa",
+hp:140,
+maxHp:140,
+atk:15,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0,
+charge:0
+},
+{
+name:"Milo",
+hp:100,
+maxHp:100,
+atk:0,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0,
+poisonTurns:0
+},
+{
+name:"Ren",
+hp:120,
+maxHp:120,
+atk:0,
+freezeTurns:0,
+snowball:0,
+skill1Cd:0,
+skill2Cd:0,
+immortal:0
+},
+{
+name:"Maniespera",
+hp:115,
+maxHp:115,
+atk:0,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0,
+skill1Cd:0,
+skill2Cd:0
+},
+{
+name:"Mister Alder",
+hp:250,
+maxHp:250,
+atk:49,
+cd:0,
+dot:0,
+freezeTurns:0,
+snowball:0,
+skill1Cd:0,
+skill2Cd:0,
+skill3Cd:45
+}
+]));
+
+}
+
+let team=[];
+
+let phase = 1;
+let boss = {
+name:"Binbin",
+hp:25,
+maxHp:25,
+atk:1,
+skillCd:0,
+img:"https://i.ibb.co/yB4Qmtrf/binbin.png"
+};
+
+let selected = [];
+let allCharacters = [...teamData];
+let lastTurn = -1;
+let skipCount = [];
+let turn = 0;
+let speedBuff=0;
+let cdBuffTurns = 0;
+let miloBuffTurns = 0;
+let bossWeakenTurns = 0;
+let alderDoubleSkill = false;
+
+const logDiv = document.getElementById("log");
+
+function log(t){
+    logDiv.innerHTML += "Orion: " + t + "<br>";
+    logDiv.scrollTop = logDiv.scrollHeight;
+}
+
+function choose(name){
+
+    if(selected.includes(name)){
+
+        selected =
+        selected.filter(
+            x => x !== name
+        );
+
+    }else{
+
+        if(selected.length >= 8){
+            alert("Maximum 8 characters!");
+            return;
+        }
+
+        selected.push(name);
+
+    }
+
+}
+
+function renderSelection(){
+
+    const imgs = {
+        Kaito:"https://i.ibb.co/hF69DM0M/image.png",
+        Elena:"https://i.ibb.co/Wvwd2Tcx/image.png",
+        Ryker:"https://i.ibb.co/35mZkCmg/image.png",
+        Aria:"https://i.ibb.co/b52T8jRr/image.png",
+Mireia:"https://i.ibb.co/4ZgfGwby/image.png",
+        Neria:"https://i.ibb.co/C3VhWsz3/image.png",
+        Vexa:"https://i.ibb.co/fdXY0PP1/image.png",
+Milo:"https://i.ibb.co/KjwBfGnk/image.png",
+        Ren:"https://i.ibb.co/VcQQyTk5/image.png",
+Maniespera:"https://i.ibb.co/fGNYfvpH/image.png",
+"Mister Alder":"https://i.ibb.co/jZwm0ZRK/image.png"
+    };
+
+    const row = document.getElementById("selectRow");
+    row.innerHTML = "";
+
+    roster.forEach(name=>{
+
+        const div = document.createElement("div");
+
+        div.className =
+        `card ${
+            selected.includes(name)
+            ? "selected"
+            : ""
+        }`;
+
+        div.innerHTML = `
+            <img src="${imgs[name]}">
+            <h3>${name}</h3>
+        `;
+
+        div.onclick = ()=>{
+            choose(name);
+            renderSelection();
+        };
+
+        row.appendChild(div);
+
+    });
+
+}
+
+function startPhase2(){
+
+phase = 2;
+
+resetCharacters();
+
+selected = [];
+
+document.getElementById("game").style.display="none";
+document.getElementById("selection").style.display="block";
+
+document.querySelector("#selection h1").innerText =
+"Choose Characters For Team";
+
+renderSelection();
+
+boss = {
+name:"Megabug",
+hp:60,
+maxHp:60,
+atk:10,
+skillCd:0,
+img:"https://i.ibb.co/gZsr4H9x/megabug.png"
+};
+
+log("🪲 Megabug appeared!");
+}
+
+function startPhase3(){
+
+phase = 3;
+
+resetCharacters();
+
+selected = [];
+
+document.getElementById("game").style.display="none";
+document.getElementById("selection").style.display="block";
+
+document.querySelector("#selection h1").innerText =
+"Choose Characters For Team";
+
+renderSelection();
+
+boss = {
+name:"Grinder Saw",
+hp:500,
+maxHp:500,
+atk:28,
+skillCd:5,
+img:"https://i.ibb.co/yFSZkjLD/5.jpg"
+};
+
+log("🪚 Grinder Saw appeared!");
+}
+
+function startPhase4(){
+
+    phase = 4;
+
+    resetCharacters();
+
+    selected = [];
+
+    document.getElementById("game").style.display="none";
+    document.getElementById("selection").style.display="block";
+
+    document.querySelector("#selection h1").innerText =
+    "Choose Characters For Team";
+
+    document.getElementById("areaText").innerText =
+    "❄️ Snow Mountain";
+
+    renderSelection();
+
+    boss = {
+        name:"Frostbox",
+        hp:250,
+        maxHp:250,
+        atk:30,
+        skillCd:3,
+        img:"https://i.ibb.co/DHqBk6PC/frostbox.png"
+    };
+
+    log("❄️ Entered Snow Mountain!");
+}
+
+function startPhase5(){
+
+    phase = 5;
+
+    resetCharacters();
+
+    selected = [];
+
+    document.getElementById("game").style.display="none";
+    document.getElementById("selection").style.display="block";
+
+    document.querySelector("#selection h1").innerText =
+    "Choose Characters For Team";
+
+    renderSelection();
+
+    boss = {
+        name:"Snowball",
+        hp:1000,
+        maxHp:1000,
+        atk:38,
+        skillCd:3,
+        img:"https://i.ibb.co/nqBWW29S/snowball.png"
+    };
+
+    log("☃️ Snowball appeared!");
+}
+
+function startBattle(){
+if(selected.length === 0){
+    alert("Choose at least 1 character!");
+    return;
+}
+
+    team = allCharacters.filter(p => selected.includes(p.name));
+    skipCount = new Array(team.length).fill(0);
+    turn = Math.floor(Math.random()*team.length);
+
+    // Render only selected team cards
+    const teamRow = document.getElementById("teamRow");
+    teamRow.innerHTML = "";
+    team.forEach((p, i) => {
+        const cardHTML = `
+            <div class="card">
+<img src="${p.name==='Elena' ? 'https://i.ibb.co/Wvwd2Tcx/image.png' :
+p.name==='Ryker' ? 'https://i.ibb.co/35mZkCmg/image.png' :
+p.name==='Aria' ? 'https://i.ibb.co/b52T8jRr/image.png' :
+p.name==='Mireia' ?
+'https://i.ibb.co/4ZgfGwby/image.png' :
+p.name==='Neria' ? 'https://i.ibb.co/C3VhWsz3/image.png' : 
+p.name==='Vexa' ?
+'https://i.ibb.co/fdXY0PP1/image.png' :
+p.name==='Milo' ?
+'https://i.ibb.co/KjwBfGnk/image.png' :
+p.name==='Ren' ?
+'https://i.ibb.co/VcQQyTk5/image.png' :
+p.name==='Maniespera' ?
+'https://i.ibb.co/fGNYfvpH/image.png' :
+p.name==="Mister Alder" ?
+"https://i.ibb.co/jZwm0ZRK/image.png" :
+'https://i.ibb.co/hF69DM0M/image.png'}">
+                <h3>${p.name}</h3>
+                <div class="bar">
+                    <div class="hp" id="hp${i}"></div>
+                </div>
+                <p id="txt${i}"></p>
+            </div>
+        `;
+        teamRow.innerHTML += cardHTML;
+    });
+
+    document.getElementById("selection").style.display = "none";
+    document.getElementById("game").style.display = "block";
+
+    update();
+}
+
+function update(){
+
+document.getElementById("battleTitle").innerText =
+"⚔ " + boss.name + " Battle ⚔";
+
+document.getElementById("bossName").innerText = boss.name;
+document.querySelector(".boss-card img").src = boss.img;
+
+    for(let i=0; i<team.length; i++){
+        let p = team[i];
+        let card = document.querySelectorAll("#teamRow .card img")[i];
+
+        if(p.hide > 0){
+            card.style.opacity = "0";
+        }else{
+            card.style.opacity = "1";
+        }
+
+        if(p.name==="Neria"){
+            card.src = p.injure ? 
+                "https://i.ibb.co/hJ8J0Q4C/image.png" : 
+                "https://i.ibb.co/C3VhWsz3/image.png";
+        }
+
+        document.getElementById("hp"+i).style.width = (p.hp/p.maxHp*100)+"%";
+
+let cdText="";
+
+if(
+    p.name==="Ren" ||
+    p.name==="Maniespera" ||
+    p.name==="Mister Alder"
+){
+
+    cdText = "";
+
+if(
+    p.name==="Ren" ||
+    p.name==="Maniespera"
+){
+
+    if(p.skill1Cd > 0){
+        cdText +=
+        " CD1:" +
+        p.skill1Cd;
+    }
+
+    if(p.skill2Cd > 0){
+        cdText +=
+        " CD2:" +
+        p.skill2Cd;
+    }
+}
+if(p.name==="Mister Alder"){
+
+    if(p.skill1Cd > 0){
+        cdText +=
+        " CD1:" +
+        p.skill1Cd;
+    }
+
+    if(p.skill2Cd > 0){
+        cdText +=
+        " CD2:" +
+        p.skill2Cd;
+    }
+
+    if(p.skill3Cd > 0){
+        cdText +=
+        " CD3:" +
+        p.skill3Cd;
+    }
+
+}
+
+}
+else{
+
+    cdText =
+    p.cd > 0
+    ? " CD:"+p.cd
+    : "";
+
+}
+
+if(p.name==="Vexa"){
+    cdText += " P:"+p.charge+"/2";
+}
+
+        document.getElementById("txt"+i).innerText = p.hp+"/"+p.maxHp + cdText + (p.hide>0?" HIDDEN":"");
+    }
+
+    document.getElementById("bossHP").style.width = (boss.hp/boss.maxHp*100)+"%";
+    document.getElementById("bossText").innerText = boss.hp+"/"+boss.maxHp;
+
+    let c = 0;
+    while(team[turn].hp <= 0 && c < team.length){
+        turn++;
+        if(turn >= team.length) turn = 0;
+        c++;
+    }
+
+    document.getElementById("turnText").innerText = "Turn: " + team[turn].name;
+}
+
+function nextTurn(){
+
+if(boss.hp<=0){
+
+if(phase===1){
+
+    phase = 2;
+
+    boss = {
+        name:"Megabug",
+        hp:60,
+        maxHp:60,
+        atk:10,
+        skillCd:0,
+        img:"https://i.ibb.co/gZsr4H9x/megabug.png"
+    };
+
+    log("🪲 Megabug appeared!");
+
+    update();
+    return;
+
+}
+
+if(phase===2){
+
+    startPhase3();
+    return;
+
+}
+
+if(phase===3){
+
+    startPhase4();
+    return;
+
+}
+
+if(phase===4){
+
+    if(!localStorage.getItem("miloUnlocked")){
+
+        localStorage.setItem(
+            "miloUnlocked",
+            "true"
+        );
+
+        if(!roster.includes("Milo")){
+            roster.push("Milo");
+        }
+
+        log("⭐️ Milo unlocked!");
+    }
+
+    startPhase5();
+    return;
+}
+
+let noDeath = team.every(p => p.hp > 0);
+
+if(
+    noDeath &&
+    !localStorage.getItem("renUnlocked")
+){
+
+    localStorage.setItem(
+        "renUnlocked",
+        "true"
+    );
+
+    if(!roster.includes("Ren")){
+        roster.push("Ren");
+    }
+
+    log("⭐ Ren unlocked!");
+}
+
+if(
+    !localStorage.getItem("maniesperaUnlocked")
+){
+
+    localStorage.setItem(
+        "maniesperaUnlocked",
+        "true"
+    );
+
+    if(!roster.includes("Maniespera")){
+        roster.push("Maniespera");
+    }
+
+    log("⭐ Maniespera unlocked!");
+}
+
+if(
+    noDeath &&
+    !localStorage.getItem("alderUnlocked")
+){
+
+    localStorage.setItem(
+        "alderUnlocked",
+        "true"
+    );
+
+    if(!roster.includes("Mister Alder")){
+        roster.push("Mister Alder");
+    }
+
+    log("⭐ Mister Alder unlocked!");
+}
+
+    log("🎉 Victory!");
+    disable();
+    return;
+}
+
+let alive = team.filter(p => p.hp > 0);
+
+if(alive.length === 0){
+    log("💀 Defeat!");
+    disable();
+    return;
+}
+
+let othersAlive =
+team.filter(
+    m => m.name !== "Neria" && m.hp > 0
+).length;
+
+let neria =
+team.find(
+    m => m.name==="Neria"
+);
+
+if(
+    neria &&
+    neria.hp > 0 &&
+    othersAlive === 0 &&
+    !neria.injure
+){
+    neria.injure = true;
+    neria.atk = 55;
+
+    log(
+        "🔥 Neria entered INJURE state!"
+    );
+}
+
+for(let p of team){
+
+    if(p.snowball > 0){
+        p.snowball += 10;
+    }
+
+if(p.freezeTurns > 0){
+    p.freezeTurns--;
+}
+
+if(p.name==="Mireia"){
+
+    if(p.huntBuffTurns > 0){
+
+        p.huntBuffTurns--;
+
+        if(p.huntBuffTurns <= 0){
+            p.huntBuff = 0;
+        }
+
+    }
+
+}
+
+if(p.name==="Mister Alder"){
+
+    p.skill1Cd =
+    Math.max(0,p.skill1Cd-1);
+
+    p.skill2Cd =
+    Math.max(0,p.skill2Cd-1);
+
+    p.skill3Cd =
+    Math.max(0,p.skill3Cd-1);
+
+}
+
+if(
+    p.name==="Ren" ||
+    p.name==="Maniespera"
+){
+
+        p.skill1Cd =
+        Math.max(
+            0,
+            p.skill1Cd-1
+        );
+
+        p.skill2Cd =
+        Math.max(
+            0,
+            p.skill2Cd-1
+        );
+
+        if(p.immortal>0){
+            p.immortal--;
+        }
+
+    }
+
+    let reduce = 1;
+
+    if(
+        cdBuffTurns > 0 &&
+        p.name !== "Ryker"
+    ){
+        reduce = 2;
+    }
+
+    p.cd =
+    Math.max(
+        0,
+        p.cd - reduce
+    );
+
+    if(p.hide > 0){
+        p.hide--;
+    }
+
+    if(p.dot > 0){
+
+        if(p.name === "Ren"){
+
+            p.dot = 0;
+
+            log(
+                "👻 Ren is immune to Bleed because he is an Illusion!"
+            );
+
+        }else{
+
+            p.hp -= 10;
+            p.dot--;
+
+            if(p.hp < 0){
+                p.hp = 0;
+            }
+
+            log(
+                p.name +
+                " takes 10 bleed damage"
+            );
+
+        }
+
+    }
+
+    if(p.hp > 0){
+
+        if(p === team[turn]){
+
+            skipCount[
+                team.indexOf(p)
+            ] = 0;
+
+        }else{
+
+            skipCount[
+                team.indexOf(p)
+            ]++;
+
+        }
+
+    }
+
+}
+
+if(cdBuffTurns > 0){
+    cdBuffTurns--;
+}
+
+if(miloBuffTurns > 0){
+    miloBuffTurns--;
+}
+
+if(boss.poisonStacks > 0){
+
+    boss.hp -= 1;
+    boss.poisonStacks--;
+
+    if(boss.hp < 0){
+        boss.hp = 0;
+    }
+
+    log("☠️ Poison deals 1 damage to boss");
+}
+
+if(bossWeakenTurns > 0){
+    bossWeakenTurns--;
+}
+
+let priority = [];
+
+for(let i=0;i<team.length;i++){
+
+    if(
+        team[i].hp > 0 &&
+        skipCount[i] >= 3
+    ){
+        priority.push(i);
+    }
+
+}
+
+if(priority.length > 0){
+
+    turn =
+    priority[
+        Math.floor(
+            Math.random()*priority.length
+        )
+    ];
+
+}else{
+
+    let aliveIdx =
+    team.map((p,i)=>i)
+    .filter(i =>
+        team[i].hp > 0 &&
+        i !== lastTurn
+    );
+
+    if(aliveIdx.length === 0){
+
+        aliveIdx =
+        team.map((p,i)=>i)
+        .filter(i =>
+            team[i].hp > 0
+        );
+
+    }
+
+    turn =
+    aliveIdx[
+        Math.floor(
+            Math.random()*aliveIdx.length
+        )
+    ];
+
+}
+
+lastTurn = turn;
+skipCount[turn] = 0;
+
+bossTurn();
+update();
+}
+
+function attack(){
+
+    let p = team[turn];
+
+    if(p.hp<=0) return;
+
+    if(p.name==="Ren"){
+
+        renIllusionBeam();
+
+        if(
+            boss.hp <=
+            boss.maxHp * 0.10
+        ){
+
+            boss.hp = 0;
+
+            log(
+                "👻 Ren erased the boss with Illusion Water!"
+            );
+
+        }else{
+
+            log(
+                "👻 Ren used Illusion Water"
+            );
+
+        }
+
+        update();
+        nextTurn();
+        return;
+
+    }
+
+let bonus =
+(speedBuff>0 ? 10 : 0) +
+(miloBuffTurns>0 ? 5 : 0);
+
+let dmg;
+
+if(
+    (p.name==="Neria" && !p.injure) ||
+    p.name==="Milo"
+){
+
+    dmg = 0;
+
+}else{
+
+let realAtk = p.atk;
+
+if(p.name==="Mireia"){
+    realAtk += p.huntBuff || 0;
+}
+
+    if(p.freezeTurns > 0){
+        realAtk = Math.max(1, realAtk - 10);
+    }
+if(p.name==="Maniespera"){
+
+    dmg =
+    realAtk +
+    Math.floor(Math.random()*20) +
+    bonus;
+
+}else{
+
+    dmg =
+    realAtk +
+    Math.floor(Math.random()*8) +
+    bonus;
+
+}
+}
+
+    boss.hp -= dmg;
+
+    if(boss.hp<0)
+    boss.hp=0;
+
+if(p.name==="Neria" && !p.injure){
+
+    log("Neria cannot attacks, auto skip turn");
+
+}
+
+if(p.name==="Milo"){
+
+    boss.poisonStacks =
+    (boss.poisonStacks || 0) + 3;
+
+    log(
+        "☠️ Milo poisoned the boss (+3 poison turns)"
+    );
+
+    update();
+    nextTurn();
+    return;
+}
+
+else if(
+    p.name === "Neria" &&
+    p.injure
+){
+    log(
+        p.name +
+        " attacks by INJURE for " +
+        dmg
+    );
+}
+
+    else if(p.name==="Kaito"){
+        log(p.name+" attacks for "+dmg);
+    }
+    else if(p.name==="Elena"){
+        log(p.name+" swings staff for "+dmg);
+    }
+    else if(p.name==="Ryker"){
+        log(p.name+" punches for "+dmg);
+    }
+    else if(p.name==="Aria"){
+        log(p.name+" swings flute for "+dmg);
+    }
+    else if(p.name==="Mireia"){
+        log(p.name+" shot and trap the boss with a hunting trap for "+dmg);
+    }
+    else if(p.name==="Vexa"){
+        log(p.name+" attacks by metal for "+dmg);
+    }
+    else if(p.name==="Maniespera"){
+        log(p.name+" attacks for "+dmg);
+    }
+    else if(p.name==="Mister Alder"){
+        log(p.name+" attacks by HATRED for "+dmg);
+    }
+    if(speedBuff>0) speedBuff--;
+
+    update();
+    nextTurn();
+}
+
+function ariaNotes(){
+    let ariaIndex = team.findIndex(p => p.name === "Aria");
+    if(ariaIndex === -1) return;
+    let img = document.querySelectorAll("#teamRow .card img")[ariaIndex];
+    let rect = img.getBoundingClientRect();
+    let cx = rect.left + rect.width/2;
+    let cy = rect.top + rect.height/2;
+
+    for(let i=0;i<8;i++){
+        let note = document.createElement("div");
+        note.className = "note";
+        note.innerHTML = "🎶";
+        document.body.appendChild(note);
+
+        let ang = i*Math.PI*2/8;
+        let dist = 50;
+
+        note.style.left = cx+"px";
+        note.style.top = cy+"px";
+
+        note.animate([
+        {transform:"translate(0,0)", opacity:1},
+        {transform:`translate(${Math.cos(ang)*dist}px, ${Math.sin(ang)*dist}px)`, opacity:0}
+        ],{
+            duration:1000,
+            easing:"linear"
+        });
+
+        setTimeout(()=>note.remove(),1000);
+    }
+}
+
+function waterBeam(){
+    let neriaIndex = team.findIndex(p => p.name === "Neria");
+    if(neriaIndex === -1) return;
+    let neriaImg = document.querySelectorAll("#teamRow .card img")[neriaIndex];
+    let bossImg = document.querySelector(".boss-card img");
+
+    let a = neriaImg.getBoundingClientRect();
+    let b = bossImg.getBoundingClientRect();
+
+    let beam = document.createElement("div");
+    beam.className = "water";
+
+    let x1 = a.left + a.width/2;
+    let y1 = a.top + a.height/2;
+    let x2 = b.left + b.width/2;
+    let y2 = b.top + b.height/2;
+
+    let len = Math.hypot(x2-x1, y2-y1);
+    let ang = Math.atan2(y2-y1, x2-x1)*180/Math.PI;
+
+    beam.style.left = x1+"px";
+    beam.style.top = y1+"px";
+    beam.style.width = len+"px";
+    beam.style.transform=`rotate(${ang}deg)`;
+    beam.style.transformOrigin="left center";
+
+    document.body.appendChild(beam);
+    setTimeout(()=>beam.remove(),300);
+}
+
+function vexaExplosion(){
+
+    let bossImg =
+    document.querySelector(".boss-card img");
+
+    let rect =
+    bossImg.getBoundingClientRect();
+
+    let boom =
+    document.createElement("div");
+
+    boom.innerHTML="💥";
+    boom.style.position="fixed";
+    boom.style.left=
+    (rect.left+rect.width/2-40)+"px";
+    boom.style.top=
+    (rect.top+rect.height/2-40)+"px";
+    boom.style.fontSize="80px";
+    boom.style.zIndex="9999";
+
+    document.body.appendChild(boom);
+
+    boom.animate([
+        {transform:"scale(0.5)",opacity:1},
+        {transform:"scale(2)",opacity:0}
+    ],{
+        duration:600
+    });
+
+    setTimeout(
+        ()=>boom.remove(),
+        600
+    );
+}
+
+function renIllusionBeam(){
+
+    let renIndex =
+    team.findIndex(
+        p => p.name==="Ren"
+    );
+
+    if(renIndex===-1) return;
+
+    let renImg =
+    document.querySelectorAll(
+        "#teamRow .card img"
+    )[renIndex];
+
+    let bossImg =
+    document.querySelector(
+        ".boss-card img"
+    );
+
+    let a =
+    renImg.getBoundingClientRect();
+
+    let b =
+    bossImg.getBoundingClientRect();
+
+    let beam =
+    document.createElement("div");
+
+    beam.className="water";
+
+    let x1=a.left+a.width/2;
+    let y1=a.top+a.height/2;
+
+    let x2=b.left+b.width/2;
+    let y2=b.top+b.height/2;
+
+    let len=
+    Math.hypot(
+        x2-x1,
+        y2-y1
+    );
+
+    let ang=
+    Math.atan2(
+        y2-y1,
+        x2-x1
+    )*180/Math.PI;
+
+    beam.style.left=x1+"px";
+    beam.style.top=y1+"px";
+
+    beam.style.width=len+"px";
+
+    beam.style.height="20px";
+
+    beam.style.opacity="0.35";
+
+    beam.style.filter=
+    "blur(6px)";
+
+    beam.style.background=
+    "linear-gradient(to right,#666,#bbb,#666)";
+
+    beam.style.transform=
+    `rotate(${ang}deg)`;
+
+    beam.style.transformOrigin=
+    "left center";
+
+    document.body.appendChild(
+        beam
+    );
+
+    setTimeout(
+        ()=>beam.remove(),
+        400
+    );
+
+}
+
+function renSpears(){
+
+for(let i=0;i<15;i++){
+
+setTimeout(()=>{
+
+let line=document.createElement("div");
+
+line.style.position="fixed";
+line.style.left=(window.innerWidth*0.55+
+Math.random()*120-60)+"px";
+
+line.style.top="-300px";
+
+line.style.width="8px";
+line.style.height="300px";
+
+line.style.background="#999";
+
+line.style.zIndex="9999";
+
+document.body.appendChild(line);
+
+line.animate([
+{transform:"translateY(0px)"},
+{transform:"translateY(900px)"}
+],{
+duration:350,
+easing:"linear"
+});
+
+setTimeout(()=>line.remove(),350);
+
+},i*40);
+
+}
+
+}
+
+function renBlackStripes(callback){
+
+let stripes = [];
+
+for(let i=0;i<14;i++){
+
+    let s=document.createElement("div");
+
+    s.style.position="fixed";
+    s.style.left="-100px";
+
+    s.style.top=
+    (Math.random()*window.innerHeight)+"px";
+
+    s.style.width=
+    (window.innerWidth+200)+"px";
+
+    s.style.height=
+    (20+Math.random()*35)+"px";
+
+    s.style.background="black";
+
+    s.style.opacity=
+    0.8+Math.random()*0.2;
+
+    s.style.zIndex="9999";
+
+    document.body.appendChild(s);
+
+    stripes.push(s);
+}
+
+let ticks = 0;
+
+let glitch = setInterval(()=>{
+
+    stripes.forEach(s=>{
+
+        s.style.top =
+        (Math.random()*window.innerHeight)+"px";
+
+        s.style.transform =
+        `translateX(${Math.random()*300-150}px)`;
+
+        s.style.height =
+        (15+Math.random()*50)+"px";
+
+        s.style.opacity =
+        0.4+Math.random()*0.6;
+
+    });
+
+    ticks++;
+
+    if(ticks>=20){
+
+        clearInterval(glitch);
+
+        stripes.forEach(
+            s=>s.remove()
+        );
+
+        callback();
+
+    }
+
+},100);
+
+}
+
+function alderBuzzsaw(callback){
+
+    let alderIndex =
+    team.findIndex(
+        p => p.name==="Mister Alder"
+    );
+
+    if(alderIndex===-1) return;
+
+    let alderImg =
+    document.querySelectorAll(
+        "#teamRow .card img"
+    )[alderIndex];
+
+    let bossImg =
+    document.querySelector(
+        ".boss-card img"
+    );
+
+    let a =
+    alderImg.getBoundingClientRect();
+
+    let b =
+    bossImg.getBoundingClientRect();
+
+    let saw =
+    document.createElement("div");
+
+    saw.className = "buzzsaw";
+
+    let x1 =
+    a.left + a.width/2 - 25;
+
+    let y1 =
+    a.top + a.height/2 - 25;
+
+    let x2 =
+    b.left + b.width/2 - 25;
+
+    let y2 =
+    b.top + b.height/2 - 25;
+
+saw.style.left = x1 + "px";
+saw.style.top = y1 + "px";
+
+document.body.appendChild(saw);
+
+setTimeout(()=>{
+
+    saw.animate([
+        {
+            left:x1+"px",
+            top:y1+"px"
+        },
+        {
+            left:x2+"px",
+            top:y2+"px"
+        }
+    ],{
+        duration:600,
+        easing:"linear",
+        fill:"forwards"
+    });
+
+},500);
+
+    setTimeout(()=>{
+
+        saw.remove();
+
+        let boom =
+        document.createElement("div");
+
+        boom.innerHTML="💥";
+        boom.style.position="fixed";
+        boom.style.left=x2+"px";
+        boom.style.top=y2+"px";
+        boom.style.fontSize="70px";
+        boom.style.zIndex="9999";
+
+        document.body.appendChild(boom);
+
+        boom.animate([
+            {transform:"scale(0.5)",opacity:1},
+            {transform:"scale(2)",opacity:0}
+        ],{
+            duration:400
+        });
+
+        setTimeout(
+            ()=>boom.remove(),
+            400
+        );
+
+        if(callback) callback();
+
+    },1100);
+
+}
+
+function skill(){
+    let p = team[turn];
+
+    if(p.hp<=0){
+        nextTurn();
+        return;
+    }
+
+if(p.cd > 0){
+    log("Skill cooldown!");
+    return;
+}
+
+    if(p.name==="Kaito"){
+        p.hide=3;
+        p.cd=5;
+        log("🎩🌀 Kaito used Fool Hat!");
+    }
+    else if(p.name==="Elena"){
+        p.cd=3;
+        for(let m of team){
+            if(m.hp>0){
+                m.hp=Math.min(m.maxHp,m.hp+35);
+            }
+        }
+        log("Elena used Heal Staff!");
+    }
+    else if(p.name==="Ryker"){
+        speedBuff = 3;
+        cdBuffTurns = 3;
+        p.cd = 4;
+        log("Ryker used Speed Boost!");
+    }
+    else if(p.name==="Aria"){
+        ariaNotes();
+        p.cd=3;
+        let total=0;
+        for(let i=0;i<5;i++){
+            total+=8+Math.floor(Math.random()*8);
+        }
+        boss.hp-=total;
+        if(boss.hp<0) boss.hp=0;
+        log("Aria used Bash Song for "+total);
+    }
+else if(p.name==="Mireia"){
+
+    p.cd = 5;
+
+    let heal = 15;
+
+    p.hp = Math.min(
+        p.maxHp,
+        p.hp + heal
+    );
+
+    p.huntBuff = 5;
+    p.huntBuffTurns = 3;
+
+    bossWeakenTurns = 3;
+
+    log(
+        "🍖 Mireia enjoyed a meal! Restored " +
+        heal +
+        " HP, increase damage and defense!"
+    );
+}
+    else if(p.name==="Neria"){
+        p.cd = 4;
+        for(let m of team){
+            if(m.hp>0){
+                m.hp=Math.min(m.maxHp,m.hp+35);
+            }
+}
+        waterBeam();
+
+        const wasAlive = boss.hp > 0;
+        if(boss.hp <= boss.maxHp*0.25){
+            boss.hp = 0;
+        }
+
+        if(boss.hp <= 0 && wasAlive){
+            log("💧Neria executed the boss!");
+        }else{
+            log("💧Neria used Water Execution and heal!");
+        }
+    }
+
+else if(p.name==="Vexa"){
+
+    p.cd = 2;
+    p.charge++;
+
+    if(p.charge >= 2){
+
+        p.charge = 0;
+
+        vexaExplosion();
+
+        boss.hp -= 99;
+
+        if(boss.hp < 0){
+            boss.hp = 0;
+        }
+
+        log(
+            "💥 Vexa detonated explosive powder for 99 damage!"
+        );
+
+    }else{
+
+        log(
+            "⚙ Vexa ordered the mechanical head to release explosive powder ("+
+            p.charge +
+            "/2)"
+        );
+
+    }
+
+}
+
+else if(p.name==="Milo"){
+
+    p.cd = 4;
+
+    miloBuffTurns = 3;
+    bossWeakenTurns = 3;
+
+    log(
+        "👻 Milo decrease boss damage and defense!"
+    );
+}
+
+else if(p.name==="Ren"){
+
+    if(p.skill1Cd>0){
+        log("Skill 1 cooldown!");
+        return;
+    }
+
+    p.skill1Cd=5;
+
+    renSpears();
+
+    let dmg=
+    80+
+    Math.floor(
+        Math.random()*31
+    );
+
+    boss.hp-=dmg;
+
+    if(boss.hp<0)
+    boss.hp=0;
+
+    log(
+        "🌀🔩 Ren telekinesis The Metal for "+
+        dmg
+    );
+
+}
+
+else if(p.name==="Maniespera"){
+
+    if(p.skill1Cd > 0){
+        log("Skill 1 cooldown!");
+        return;
+    }
+
+    p.skill1Cd = 4;
+
+    if(Math.random() < 0.5){
+
+        for(let m of team){
+
+            if(m.hp > 0){
+                m.atk += 20;
+            }
+
+        }
+
+        log(
+            "🤍 Maniespera changed power success! Team damage increased!"
+        );
+
+    }else{
+
+        for(let m of team){
+
+            if(m.hp > 0){
+                m.atk =
+                Math.max(
+                    0,
+                    m.atk - 20
+                );
+            }
+
+        }
+
+        log(
+            "🖤 Maniespera changed power fail! Team damage decreased!"
+        );
+
+    }
+
+}
+
+else if(p.name==="Mister Alder"){
+
+    if(p.skill1Cd>0){
+        log("Skill 1 cooldown!");
+        return;
+    }
+
+    p.skill1Cd = 6;
+
+    alderDoubleSkill = true;
+
+    log(
+        "🪵 Mister Alder can use the next skill twice!"
+    );
+}
+
+    update();
+    nextTurn();
+}
+
+function skill2(){
+
+let p = team[turn];
+
+if(!p || p.hp<=0) return;
+
+if(p.name==="Ren"){
+
+    if(p.skill2Cd>0){
+        log("Skill 2 cooldown!");
+        return;
+    }
+
+    p.skill2Cd=7;
+    p.immortal=2;
+
+    renBlackStripes(()=>{
+
+        let dmg=
+        140+
+        Math.floor(Math.random()*41);
+
+        boss.hp-=dmg;
+
+        if(boss.hp<0) boss.hp=0;
+
+        log(
+            "🖤 Ren used Illusion Erasure for "+
+            dmg
+        );
+
+        update();
+    });
+
+    update();
+    nextTurn();
+    return;
+}
+
+else if(p.name==="Maniespera"){
+
+    if(p.skill2Cd>0){
+        log("Skill 2 cooldown!");
+        return;
+    }
+
+    p.skill2Cd=7;
+
+    renBlackStripes(()=>{
+
+        let dmg=
+        140+
+        Math.floor(Math.random()*41);
+
+        boss.hp-=dmg;
+
+        if(boss.hp<0) boss.hp=0;
+
+        log(
+            "🖤 Maniespera used Illusion Erasure for "+
+            dmg
+        );
+
+        update();
+    });
+
+    update();
+    nextTurn();
+    return;
+}
+
+if(p.name==="Mister Alder"){
+
+    if(p.skill2Cd>0){
+        log("Skill 2 cooldown!");
+        return;
+    }
+
+    p.skill2Cd=7;
+
+    let hit=()=>{
+
+        let dmg=
+        999+
+        Math.floor(Math.random()*9001);
+
+        boss.hp-=dmg;
+
+        if(boss.hp<0){
+            boss.hp=0;
+        }
+
+        log(
+            "🪚 Buzzsaw deals "+
+            dmg+
+            " damage!"
+        );
+
+        update();
+    };
+
+alderBuzzsaw(hit);
+
+    if(alderDoubleSkill){
+
+        alderDoubleSkill=false;
+
+setTimeout(()=>{
+    alderBuzzsaw(hit);
+},1000);
+
+        log(
+            "🪵 Double Skill activated!"
+        );
+    }
+
+    update();
+    nextTurn();
+    return;
+}
+
+log("This character has no Skill 2!");
+
+}
+
+function skill3(){
+
+let p = team[turn];
+
+if(
+    p.name!=="Mister Alder"
+){
+    log(
+        "Only Mister Alder has Skill 3!"
+    );
+    return;
+}
+
+if(p.skill3Cd>0){
+    log("Skill 3 cooldown!");
+    return;
+}
+
+p.skill3Cd = 45;
+
+boss.atk = 1;
+
+boss.skillCd = Infinity;
+
+if(boss.maxHp > 100){
+
+    boss.maxHp = 100;
+
+    if(boss.hp > 100){
+        boss.hp = 100;
+    }
+
+}
+
+log(
+    "🪵 NORMAL STATE! Boss became weak!"
+);
+
+if(alderDoubleSkill){
+
+    alderDoubleSkill = false;
+
+    setTimeout(()=>{
+
+        boss.atk = 1;
+        boss.skillCd = Infinity;
+
+        if(boss.maxHp > 100){
+
+            boss.maxHp = 100;
+
+            if(boss.hp > 100){
+                boss.hp = 100;
+            }
+
+        }
+
+        log("🪵 Double Skill activated!");
+
+        update();
+
+    },1000);
+
+}
+
+update();
+nextTurn();
+
+}
+
+function bossTurn(){
+
+    if(boss.hp<=0) return;
+
+    let targets =
+    team.filter(p=>p.hp>0);
+
+    if(targets.length===0) return;
+
+    let t =
+    targets[
+        Math.floor(Math.random()*targets.length)
+    ];
+
+    // Fool Hat
+    if(t.name==="Kaito" && t.hide>0){
+        log(
+            "🎩🌀 " +
+            boss.name +
+            " attacked Kaito, but Fool Hat avoided the attack!"
+        );
+        return;
+    }
+
+    // Ren immortality
+    if(
+        t.name==="Ren" &&
+        t.immortal>0
+    ){
+        log(
+            "🖤 Ren ignored the attack!"
+        );
+        return;
+    }
+
+    let weaken =
+    bossWeakenTurns > 0 ? 10 : 0;
+
+    // BINBIN
+    if(phase===1){
+
+        let dmg =
+        Math.max(
+            1,
+            boss.atk +
+            Math.floor(Math.random()*9) -
+            weaken
+        );
+
+        t.hp -= dmg;
+
+        if(t.hp<0) t.hp=0;
+
+        log(
+            "🌱 Binbin hits " +
+            t.name +
+            " for " +
+            dmg
+        );
+
+        return;
+    }
+
+// MEGABUG
+if(phase===2){
+
+        let dmg =
+        Math.max(
+            1,
+            boss.atk +
+            Math.floor(Math.random()*10) -
+            weaken
+        );
+
+        t.hp -= dmg;
+
+        if(t.hp<0) t.hp=0;
+
+    log(
+        "🪲 Megabug jumps on " +
+        t.name +
+        " for " +
+        dmg
+    );
+
+    return;
+}
+
+// GRINDER SAW
+if(phase===3){
+
+        if(boss.skillCd<=0){
+
+            let dmg =
+            Math.max(
+                1,
+                60 - weaken
+            );
+
+            t.hp -= dmg;
+
+            if(t.hp<0) t.hp=0;
+
+            t.dot = 3;
+
+            boss.skillCd = 5;
+
+            log(
+                "🪚🩸 Grinder Saw used SAW ATTACK on " +
+                t.name +
+                " for " +
+                dmg +
+                " damage and inflicted Bleed!"
+            );
+
+            return;
+        }
+
+        boss.skillCd--;
+
+        let dmg =
+        Math.max(
+            1,
+            boss.atk +
+            Math.floor(Math.random()*12) -
+            weaken
+        );
+
+        t.hp -= dmg;
+
+        if(t.hp<0) t.hp=0;
+
+        log(
+            "🪚 Grinder Saw hits " +
+            t.name +
+            " for " +
+            dmg
+        );
+
+        return;
+    }
+
+    // FROSTBOX
+    if(phase===4){
+
+        if(boss.skillCd<=0){
+
+            for(let p of team){
+
+                if(p.hp>0){
+                    p.freezeTurns = 3;
+                }
+
+            }
+
+            boss.skillCd = 4;
+
+            log(
+                "❄️ Frostbox used Freezing Wind! Team ATK reduced!"
+            );
+
+            return;
+        }
+
+        boss.skillCd--;
+
+        let dmg =
+        Math.max(
+            1,
+            boss.atk +
+            Math.floor(Math.random()*8) -
+            weaken
+        );
+
+        t.hp -= dmg;
+
+        if(t.hp<0) t.hp=0;
+
+        log(
+            "📦 Frostbox hits " +
+            t.name +
+            " for " +
+            dmg
+        );
+
+        return;
+    }
+
+    // SNOWBALL
+    if(phase===5){
+
+if(boss.skillCd<=0){
+
+    if(t.snowball <= 0){
+        t.snowball = 10;
+    }
+
+let dmg = t.snowball;
+
+// Không được giết mục tiêu
+if(dmg >= t.hp){
+    dmg = Math.max(0, t.hp - 1);
+}
+
+t.hp -= dmg;
+
+    boss.skillCd = 3;
+
+log(
+    "☃️ Snowball rolled a snowball into " +
+    t.name +
+    " for " +
+    dmg
+);
+
+    return;
+}
+
+        boss.skillCd--;
+
+        let dmg =
+        Math.max(
+            1,
+            boss.atk +
+            Math.floor(Math.random()*10) -
+            weaken
+        );
+
+        t.hp -= dmg;
+
+        if(t.hp<0) t.hp=0;
+
+        log(
+            "☃️ Snowball hits " +
+            t.name +
+            " for " +
+            dmg
+        );
+
+        return;
+    }
+
+}
+
+function disable(){
+    let b=document.querySelectorAll("button");
+    for(let x of b){
+        x.disabled=true;
+    }
+}
+
+renderSelection();
+log("Entered Wood Land!");
+
+</script>
+
+</body>
+</html>
